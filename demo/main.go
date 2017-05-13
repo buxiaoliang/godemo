@@ -223,7 +223,7 @@ func DBClient(name string, json string) {
 		DB:       0, // use default DB
 	})
 
-	err := client.Set("location:" + name, json, 0).Err()
+	err := client.Set("location:" + name, json, 3600).Err()
 	if err != nil {
 		panic(err)
 	}
