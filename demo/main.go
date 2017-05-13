@@ -8,8 +8,6 @@ import (
 	"log"
 	"github.com/gorilla/mux"
 	"github.com/go-redis/redis"
-	//"reflect"
-	//"strings"
 )
 
 type Location struct {
