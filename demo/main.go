@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"github.com/gorilla/mux"
+	"github.com/go-redis/redis"
+	//"reflect"
+	//"strings"
 )
 
 type Location struct {
@@ -22,9 +25,55 @@ type Weather struct {
 }
 
 func main() {
+	// router
 	router := mux.NewRouter()
-	router.HandleFunc("/location/{name}", handleLocation).Methods("GET", "DELETE");
+	router.HandleFunc("/location", handleLocationPost).Methods("GET", "POST")
+	router.HandleFunc("/location/{name}", handleLocation).Methods("GET", "DELETE")
 	log.Fatal(http.ListenAndServe(":8081", router))
+}
+
+func handleLocationPost(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	responseData, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var location Location
+	json.Unmarshal(responseData, &location)
+
+	switch r.Method {
+	case "GET":
+		// Serve the resource.
+		fmt.Println("Endpoint Hit: GET Locations")
+		// location to json string
+		outgoingJSON, error := json.Marshal(DBClientGet())
+		if error != nil {
+			log.Println(error.Error())
+			http.Error(w, error.Error(), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, string(outgoingJSON))
+	case "POST":
+		// Create a new record.
+		fmt.Println("Endpoint Hit: POST Location By " + location.Name)
+		// insert into database
+		DBClientPost(location.Name)
+		// location to json string
+		outgoingJSON, error := json.Marshal(location)
+		if error != nil {
+			log.Println(error.Error())
+			http.Error(w, error.Error(), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, string(outgoingJSON))
+	default:
+		// Give an error message.
+		fmt.Println("Endpoint Hit: DEFAULT")
+	}
+
+	fmt.Println("Endpoint Hit: handleLocationPost")
 }
 
 func handleLocation(w http.ResponseWriter, r *http.Request) {
@@ -52,30 +101,111 @@ func handleLocation(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		// Serve the resource.
-		fmt.Println("Endpoint Hit: GET")
-		fmt.Println(location.Name)
-		fmt.Println(len(location.Weather))
-	case "POST":
-		// Create a new record.
-		fmt.Println("Endpoint Hit: POST")
-	case "PUT":
-		// Update an existing record.
-		fmt.Println("Endpoint Hit: PUT")
+		fmt.Println("Endpoint Hit: GET Location By " + name)
+		//fmt.Println(location.Name)
+		//fmt.Println(len(location.Weather))
+		// location to json string
+		outgoingJSON, error := json.Marshal(location)
+
+		if error != nil {
+			log.Println(error.Error())
+			http.Error(w, error.Error(), http.StatusInternalServerError)
+			return
+		}
+		DBClient(name, string(outgoingJSON))
+		fmt.Fprintf(w, string(outgoingJSON))
 	case "DELETE":
 		// Remove the record.
-		fmt.Println("Endpoint Hit: DELETE")
+		fmt.Println("Endpoint Hit: DELETE Location By " + name)
+		DBClientDelete(name)
 	default:
 		// Give an error message.
 		fmt.Println("Endpoint Hit: DEFAULT")
 	}
-	// location to json string
-	outgoingJSON, error := json.Marshal(location)
-
-	if error != nil {
-		log.Println(error.Error())
-		http.Error(w, error.Error(), http.StatusInternalServerError)
-		return
-	}
-	fmt.Fprintf(w, string(outgoingJSON))
-	fmt.Println("Endpoint Hit: location")
+	fmt.Println("Endpoint Hit: handleLocation")
 }
+
+func DBClientGet() []string {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	val, err := client.SMembers("locations").Result()
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(val)
+	return val
+}
+
+func DBClientPost(name string) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	val, err := client.SIsMember("locations", name).Result()
+	if err != nil {
+		panic(err)
+	}
+	if (!val) {
+		err2 := client.SAdd("locations", name).Err()
+		if err2 != nil {
+			panic(err2)
+		}
+	}
+}
+
+func DBClientDelete(name string) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	val, err := client.SIsMember("locations", name).Result()
+	if err != nil {
+		panic(err)
+	}
+	if (val) {
+		err2 := client.SRem("locations", name).Err()
+		if err2 != nil {
+			panic(err2)
+		}
+	}
+}
+
+func DBClient(name string, json string) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	//pong, err := client.Ping().Result()
+	//fmt.Println(pong, err)
+	// Output: PONG <nil>
+
+	err := client.Set("location:" + name, json, 0).Err()
+	if err != nil {
+		panic(err)
+	}
+	//err2 := client.HMSet(name, Struct2Map(location)).Err()
+	//if err2 != nil {
+	//	panic(err2)
+	//}
+}
+
+//func Struct2Map(obj interface{}) map[string]interface{} {
+//	t := reflect.TypeOf(obj)
+//	v := reflect.ValueOf(obj)
+//
+//	var data = make(map[string]interface{})
+//	for i := 0; i < t.NumField(); i++ {
+//		data[strings.ToLower(t.Field(i).Name)] = v.Field(i).Interface()
+//	}
+//	return data
+//}
