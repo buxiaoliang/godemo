@@ -81,37 +81,41 @@ func handleLocation(w http.ResponseWriter, r *http.Request) {
 	name := vars["name"]
 
 	fmt.Println("Request for:", name)
-	// get data from rest api
-	response, err := http.Get("http://api.openweathermap.org/data/2.5/weather?q=" + name + "&APPID=3a730068fddcec295e6ea1e29b342167")
-	if err != nil {
-		fmt.Print(err.Error())
-		//os.Exit(1)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var location Location
-	json.Unmarshal(responseData, &location)
 
 	switch r.Method {
 	case "GET":
-		// Serve the resource.
-		fmt.Println("Endpoint Hit: GET Location By " + name)
-		//fmt.Println(location.Name)
-		//fmt.Println(len(location.Weather))
-		// location to json string
-		outgoingJSON, error := json.Marshal(location)
+		if (DBClientCheck(name)) {
+			// get data from rest api
+			response, err := http.Get("http://api.openweathermap.org/data/2.5/weather?q=" + name + "&APPID=3a730068fddcec295e6ea1e29b342167")
+			if err != nil {
+				fmt.Print(err.Error())
+				//os.Exit(1)
+			}
 
-		if error != nil {
-			log.Println(error.Error())
-			http.Error(w, error.Error(), http.StatusInternalServerError)
-			return
+			responseData, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			var location Location
+			json.Unmarshal(responseData, &location)
+			// Serve the resource.
+			fmt.Println("Endpoint Hit: GET Location By " + name)
+			//fmt.Println(location.Name)
+			//fmt.Println(len(location.Weather))
+			// location to json string
+			outgoingJSON, error := json.Marshal(location)
+
+			if error != nil {
+				log.Println(error.Error())
+				http.Error(w, error.Error(), http.StatusInternalServerError)
+				return
+			}
+			DBClient(name, string(outgoingJSON))
+			fmt.Fprintf(w, string(outgoingJSON))
+		} else {
+			fmt.Fprintf(w, DBClientWeather(name))
 		}
-		DBClient(name, string(outgoingJSON))
-		fmt.Fprintf(w, string(outgoingJSON))
 	case "DELETE":
 		// Remove the record.
 		fmt.Println("Endpoint Hit: DELETE Location By " + name)
@@ -174,6 +178,42 @@ func DBClientDelete(name string) {
 			panic(err2)
 		}
 	}
+}
+
+// check if need to create/update location:name's weather
+func DBClientCheck(name string) bool {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	//expired, err := client.Expire("location:" + name, 3600).Result()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//if (expired) {
+	//	return false
+	//}
+	existed, err2 := client.Exists("location:" + name).Result()
+	if err2 != nil {
+		panic(err2)
+	}
+	return existed == 0
+}
+
+func DBClientWeather(name string) string {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0, // use default DB
+	})
+
+	weather, err := client.Get("location:" + name).Result()
+	if err != nil {
+		panic(err)
+	}
+	return weather
 }
 
 func DBClient(name string, json string) {
