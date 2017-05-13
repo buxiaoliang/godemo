@@ -185,27 +185,8 @@ func DBClient(name string, json string) {
 		DB:       0, // use default DB
 	})
 
-	//pong, err := client.Ping().Result()
-	//fmt.Println(pong, err)
-	// Output: PONG <nil>
-
 	err := client.Set("location:" + name, json, 0).Err()
 	if err != nil {
 		panic(err)
 	}
-	//err2 := client.HMSet(name, Struct2Map(location)).Err()
-	//if err2 != nil {
-	//	panic(err2)
-	//}
 }
-
-//func Struct2Map(obj interface{}) map[string]interface{} {
-//	t := reflect.TypeOf(obj)
-//	v := reflect.ValueOf(obj)
-//
-//	var data = make(map[string]interface{})
-//	for i := 0; i < t.NumField(); i++ {
-//		data[strings.ToLower(t.Field(i).Name)] = v.Field(i).Interface()
-//	}
-//	return data
-//}
