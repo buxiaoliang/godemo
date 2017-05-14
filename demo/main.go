@@ -8,6 +8,7 @@ import (
 	"log"
 	"github.com/gorilla/mux"
 	"github.com/go-redis/redis"
+	"time"
 )
 
 type Location struct {
@@ -195,17 +196,19 @@ func DBClientCheck(name string) bool {
 		DB:       0, // use default DB
 	})
 
-	//expired, err := client.Expire("location:" + name, 3600).Result()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//if (expired) {
-	//	return false
-	//}
-	existed, err2 := client.Exists("location:" + name).Result()
+	existed, err := client.Exists("location:" + name).Result()
+	if err  != nil {
+		panic(err)
+	}
+	/**
+	// don't need to check duration for timeout, the key will removed in redis
+	duration, err2 := client.TTL("location:" + name).Result()
 	if err2 != nil {
 		panic(err2)
 	}
+	durationAsSecond := duration / time.Second
+	return existed == 0 || (existed == 1 && durationAsSecond < 0)
+	**/
 	return existed == 0
 }
 
@@ -230,7 +233,8 @@ func DBClient(name string, json string) {
 		DB:       0, // use default DB
 	})
 
-	err := client.Set("location:" + name, json, 3600).Err()
+	// one hour timeout, will clear cache automatically
+	err := client.Set("location:" + name, json, time.Duration(3600)*time.Second).Err()
 	if err != nil {
 		panic(err)
 	}

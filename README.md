@@ -1,6 +1,15 @@
 # golang demo
 golang demo
 
+## Introduction
+This is a basic demo for REST API using redis and for weather the redis cache is an hour
+
+Start demo.exe and test following URL
+GET http://localhost:8081/location
+GET http://localhost:8081/location/Shanghai
+POST http://localhost:8081/location
+DELETE http://localhost:8081/location/Shanghai
+
 ## Requirement
 # 使用openweathermap.com的服务提供天气API
 
