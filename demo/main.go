@@ -57,15 +57,20 @@ func handleLocationPost(w http.ResponseWriter, r *http.Request) {
 		// Create a new record.
 		fmt.Println("Endpoint Hit: POST Location By " + location.Name)
 		// insert into database
-		DBClientPost(location.Name)
-		// location to json string
-		outgoingJSON, error := json.Marshal(location)
-		if error != nil {
-			log.Println(error.Error())
-			http.Error(w, error.Error(), http.StatusInternalServerError)
-			return
+		if (DBClientPost(location.Name)) {
+			// location to json string
+			outgoingJSON, error := json.Marshal(location)
+			if error != nil {
+				log.Println(error.Error())
+				http.Error(w, error.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprintf(w, string(outgoingJSON))
+		} else {
+			w.WriteHeader(http.StatusConflict)
 		}
-		fmt.Fprintf(w, string(outgoingJSON))
+
 	default:
 		// Give an error message.
 		fmt.Println("Endpoint Hit: DEFAULT")
@@ -142,7 +147,7 @@ func DBClientGet() []string {
 	return val
 }
 
-func DBClientPost(name string) {
+func DBClientPost(name string) bool {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
@@ -158,7 +163,9 @@ func DBClientPost(name string) {
 		if err2 != nil {
 			panic(err2)
 		}
+		return true
 	}
+	return false
 }
 
 func DBClientDelete(name string) {
