@@ -28,6 +28,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/location", handleLocationPost).Methods("GET", "POST")
 	router.HandleFunc("/location/{name}", handleLocation).Methods("GET", "DELETE")
+	// attention: the port may been used by other process
 	log.Fatal(http.ListenAndServe(":8081", router))
 }
 
