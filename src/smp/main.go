@@ -33,8 +33,7 @@ func handleLibCommands(tokens []string) {
 	}
 	case "remove": {
 		if len(tokens) == 3 {
-			// remove first elem
-			lib.Remove(0)
+			lib.RemoveByName(tokens[2])
 		} else {
 			fmt.Println("USAGE: lib remove <name>")
 		}
